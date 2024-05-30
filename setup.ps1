@@ -10,6 +10,24 @@ function Log-Message {
     "$timestamp - $message" | Out-File -Append -FilePath $logFile
 }
 
+# Function to run a process with a timeout
+function Start-ProcessWithTimeout {
+    param (
+        [string]$filePath,
+        [string]$arguments,
+        [int]$timeoutSeconds
+    )
+    $process = Start-Process -FilePath $filePath -ArgumentList $arguments -PassThru -Wait
+    $process | Wait-Process -Timeout $timeoutSeconds
+    if (!$process.HasExited) {
+        $process.Kill()
+        throw "Process $filePath timed out after $timeoutSeconds seconds."
+    }
+}
+
+# Start logging
+Log-Message "Starting setup script..."
+
 # Disable the Windows Firewall for Domain, Public, and Private profiles
 try {
     Log-Message "Disabling Windows Firewall..."
@@ -26,11 +44,11 @@ try {
     $chromeRemoteDesktopHostInstaller = "$env:TEMP\chromeremotedesktophost.msi"
     
     Log-Message "Downloading Chrome Remote Desktop Host from $chromeRemoteDesktopHostUrl..."
-    Invoke-WebRequest -Uri $chromeRemoteDesktopHostUrl -OutFile $chromeRemoteDesktopHostInstaller
+    Invoke-WebRequest -Uri $chromeRemoteDesktopHostUrl -OutFile $chromeRemoteDesktopHostInstaller -Verbose
     Log-Message "Downloaded Chrome Remote Desktop Host."
 
     Log-Message "Installing Chrome Remote Desktop Host..."
-    Start-Process -FilePath $chromeRemoteDesktopHostInstaller -Wait -ErrorAction Stop
+    Start-ProcessWithTimeout -FilePath $chromeRemoteDesktopHostInstaller -Arguments "" -TimeoutSeconds 300
     Log-Message "Installed Chrome Remote Desktop Host."
 
     Remove-Item $chromeRemoteDesktopHostInstaller
@@ -46,11 +64,11 @@ try {
     $chromeInstaller = "$env:TEMP\chrome_installer.exe"
     
     Log-Message "Downloading Google Chrome from $chromeInstallerUrl..."
-    Invoke-WebRequest -Uri $chromeInstallerUrl -OutFile $chromeInstaller
+    Invoke-WebRequest -Uri $chromeInstallerUrl -OutFile $chromeInstaller -Verbose
     Log-Message "Downloaded Google Chrome."
 
     Log-Message "Installing Google Chrome..."
-    Start-Process -FilePath $chromeInstaller -ArgumentList '/install' -Verb RunAs -Wait -ErrorAction Stop
+    Start-ProcessWithTimeout -FilePath $chromeInstaller -Arguments '/install' -TimeoutSeconds 300
     Log-Message "Installed Google Chrome."
 
     Remove-Item $chromeInstaller
@@ -59,3 +77,5 @@ try {
     Log-Message "Error installing Google Chrome: $_"
     throw
 }
+
+Log-Message "Setup script completed successfully."
