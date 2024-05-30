@@ -14,14 +14,23 @@ function Log-Message {
 function Start-ProcessWithTimeout {
     param (
         [string]$filePath,
-        [string]$arguments,
+        [string]$arguments = "",
         [int]$timeoutSeconds
     )
-    $process = Start-Process -FilePath $filePath -ArgumentList $arguments -PassThru -Wait
-    $process | Wait-Process -Timeout $timeoutSeconds
-    if (!$process.HasExited) {
-        $process.Kill()
-        throw "Process $filePath timed out after $timeoutSeconds seconds."
+    try {
+        Log-Message "Starting process $filePath with arguments $arguments and timeout of $timeoutSeconds seconds."
+        $process = Start-Process -FilePath $filePath -ArgumentList $arguments -PassThru -Wait
+        $process | Wait-Process -Timeout $timeoutSeconds
+        if (!$process.HasExited) {
+            Log-Message "Process $filePath timed out after $timeoutSeconds seconds."
+            $process.Kill()
+            throw "Process $filePath timed out after $timeoutSeconds seconds."
+        } else {
+            Log-Message "Process $filePath completed successfully."
+        }
+    } catch {
+        Log-Message "Error running process $filePath: $_"
+        throw
     }
 }
 
@@ -48,7 +57,7 @@ try {
     Log-Message "Downloaded Chrome Remote Desktop Host."
 
     Log-Message "Installing Chrome Remote Desktop Host..."
-    Start-ProcessWithTimeout -FilePath $chromeRemoteDesktopHostInstaller -Arguments "" -TimeoutSeconds 300
+    Start-ProcessWithTimeout -FilePath $chromeRemoteDesktopHostInstaller -TimeoutSeconds 300
     Log-Message "Installed Chrome Remote Desktop Host."
 
     Remove-Item $chromeRemoteDesktopHostInstaller
